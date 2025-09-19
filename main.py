@@ -1,27 +1,42 @@
 import streamlit as st
 from transformers import pipeline
 
-# Load the summarizer model once (outside the app flow for performance)
+st.set_page_config(page_title="Summarizer", layout="wide")
+
 @st.cache_resource
-def load_summarizer():
-    return pipeline("summarization", model="facebook/bart-large-cnn")
+def load_model():
+    models = {}
+    models['summ'] = pipeline('summarization', model="facebook/bart-large-cnn")
+    models['sent'] = pipeline('sentiment-analysis', model="distilbert-base-uncased-finetuned-sst-2-english")
+    return models
 
-summarizer = load_summarizer()
+st.title("Summarizer & Sentiment Analyzer!!")
+st.write("Paste the text to get summary as well as sentiment report.")
 
-st.title("📝 Text Summarizer")
+col1, col2 = st.columns([3,1])
 
-# User input
-text = st.text_area("Enter text to summarize:", height=200)
+with col2:
+    max_length = st.slider("Max Summary length:", 30, 400, 120)
+    min_length = st.slider("Min Summary length:", 10, 200, 30)
 
-# When the user clicks the button
-if st.button("Summarize"):
-    if text.strip():
-        with st.spinner('Summarizing...'):
-            # Generate summary
-            summary = summarizer(text, max_length=100, min_length=30, do_sample=False)
-            result = summary[0]['summary_text']
+text = col1.text_area("Text to summarize:", height=300, placeholder="Enter text here...")
 
-        st.subheader("Summary")
-        st.write(result)
+if st.button('Analyze!!'):
+    if not text.strip():
+        st.warning("Please Enter text first!!")
     else:
-        st.warning("Please enter some text first.")
+        with st.spinner("Summarizing..."):
+            models = load_model()
+            try:
+                summary = models['summ'](text, max_length=max_length, min_length=min_length)[0]['summary_text']
+            except Exception:
+                sentences = text.split('.')
+                chunks = [".".join(sentences[i:i+8]) for i in range(0, len(sentences), 8)]
+                parts = [models['summ'](c, max_length=max_length, min_length=min_length)[0]['summary_text'] for c in chunks if c.strip()]
+                summary = " ".join(parts)
+
+            sentiment = models['sent'](text[:1000])
+            st.subheader("Summary:")
+            st.write(summary)
+            st.subheader("Sentiment:")
+            st.json(sentiment)
