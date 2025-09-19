@@ -1,27 +1,27 @@
 import streamlit as st
 from transformers import pipeline
 
-st.set_page_config(page_title='Summarizer',layout='wide')
+# Load the summarizer model once (outside the app flow for performance)
 @st.cache_resource
-def load_model():
-    models= {}
-    models['summ']= pipeline('summarization', model='facebook/bart-large-cnn')
-    models['sent']= pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
-    return models
+def load_summarizer():
+    return pipeline("summarization", model="facebook/bart-large-cnn")
 
-st.title('Summarizer and Sentiment Anal!!')
-st.write('paste the text to get the summary as well as sentiment anal')
-col1, col2= st.columns([3,1])
-with col2:
-    max_len= st.slider('Max Summary length: ',30,400,120)
-    min_len= st.slider('Min summary length:', 10,200,30)
+summarizer = load_summarizer()
 
-text= col1.text_area('Text to summarize', height=300, placeholder='enter text here...')
-if st.button('Anal!!'):
-    if not text.strip():
-        st.warning('PLEAES ENTER TEXT FIRST')
-    else:
+st.title("📝 Text Summarizer")
+
+# User input
+text = st.text_area("Enter text to summarize:", height=200)
+
+# When the user clicks the button
+if st.button("Summarize"):
+    if text.strip():
         with st.spinner('Summarizing...'):
-            models= load_model()
-            try:
-                summary= models['summ']()
+            # Generate summary
+            summary = summarizer(text, max_length=100, min_length=30, do_sample=False)
+            result = summary[0]['summary_text']
+
+        st.subheader("Summary")
+        st.write(result)
+    else:
+        st.warning("Please enter some text first.")
